@@ -1,2 +1,1 @@
-# expenses-predictor
-FINOdays hackathon case 
+# Category expenses prediction REST API service
