@@ -1,27 +1,42 @@
 import os
+from collections import defaultdict
 from enum import Enum, unique
-from typing import Optional, Any, Tuple, Dict, Iterable, Iterator
+from typing import Optional, Any, Tuple, Dict, Iterable, Iterator, TypeVar, Type
 
 import numpy as np
 
 
-Date = int  # temporary
+Date = int  # month number
 Value = float
+
+
+_IDEnum = TypeVar('_IDEnum', bound='IDEnum')
+
+
+def _id_generator() -> Iterator[int]:
+    curr_id = 0
+    while True:
+        yield curr_id
+        curr_id += 1
+
+
+cls2id_generator: Dict[Type, Iterator[int]] = defaultdict(_id_generator)
 
 
 class IDEnum(bytes, Enum):
     def __new__(cls, value: str):
         obj = bytes.__new__(cls, value, encoding='utf8')
         obj._value_ = value
-        obj.id = next(cls._id_generator())
+        obj.id = next(cls2id_generator[cls])
         return obj
 
-    @staticmethod
-    def _id_generator() -> Iterator[int]:
-        curr_id = 0
-        while True:
-            yield curr_id
-            curr_id += 1
+    @classmethod
+    def from_id(cls: _IDEnum, target_id: int) -> _IDEnum:
+        for member in cls.__members__.values():
+            if member.id == target_id:
+                return member
+
+        raise ValueError(f'Couldn\'t find member for id {target_id} in {cls}')
 
 
 @unique
@@ -52,7 +67,15 @@ class Category(IDEnum):
     FLOWER = 'Цветы'
     RAILROAD = 'Ж/д билеты'
     RESTAURANT = 'Рестораны'
-    # etc
+    SPORT = 'Спорттовары'
+    GOVERNMENT = 'Госсборы'
+    AUTO_RENT = 'Аренда авто'
+    ANIMAL = 'Животные'
+    DUTY_FREE = 'Duty Free'
+    TOURS = 'Турагентства'
+    EDUCATION = 'Образование'
+    ART = 'Искусство'
+    PHOTO = 'Фото/Видео'
 
 
 def empty_expenses() -> Dict[Category, Value]:
