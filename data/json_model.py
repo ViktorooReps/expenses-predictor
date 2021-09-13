@@ -3,7 +3,7 @@ from typing import Tuple, Dict, Optional
 import numpy as np
 from pydantic import BaseModel
 
-from data.datamodel import User, Story, Value, Impression, Gender, MaritalStatus, ProductVector, TransactionType, Category, Date
+from data.datamodel import User, Story, Value, Impression, Gender, MaritalStatus, ProductVector, TransactionType, Category, Date, TimeStamp
 
 
 class StoryModel(BaseModel):
@@ -15,16 +15,14 @@ class StoryModel(BaseModel):
         pass
 
 
-class ExpenseModel(BaseModel):
-    amount: Value
-    category: Category
-
-
 class TimeStampModel(BaseModel):
     date: Date  # temporary
     impressions: Optional[Dict[Impression, int]]  # impression -> story id
     balance_change: Optional[Value]
-    expenses: Optional[Tuple[ExpenseModel, ...]]
+    expenses: Optional[Dict[Category, Value]]
+
+    def to_time_stamp(self) -> TimeStamp:
+        pass
 
 
 class UserDataModel(BaseModel):
