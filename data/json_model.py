@@ -25,9 +25,8 @@ class HandleKeyEnumEncoder(json.JSONEncoder):
 
 
 class EnumAwareModel(BaseModel):
-
-    def json(*args, **kwargs) -> str:
-        return super().json(cls=HandleKeyEnumEncoder)
+    def json(self, *args, **kwargs) -> str:
+        return super().json(*args, **kwargs, cls=HandleKeyEnumEncoder)
 
 
 class StoryModel(BaseModel):
@@ -106,9 +105,9 @@ class UserModel(BaseModel):
                              timeline=tuple(TimeStampModel.from_time_stamp(ts) for ts in user.timeline))
 
 
-class StoryModelList(BaseModel):
+class StoryModelList(EnumAwareModel):
     __root__: List[StoryModel]
 
 
-class UserDataModelList(BaseModel):
+class UserDataModelList(EnumAwareModel):
     __root__: List[UserDataModel]
