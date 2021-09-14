@@ -4,10 +4,14 @@
 ### 1. Serialize data:
 Make sure you moved all .csv files to `cache/tinkoff_hackathon_data`
 
-`python tools/seialize_data.py`
+`python tools/serialize_data.py`
 
 ### 2. Deserialize data:
 
 With `parse_file_as` from `pydantic.tools`:
 
 `parse_file_as(List[UserDataModel], 'data/json/users_test.json')`
+
+### 3. Run server locally:
+
+`python tools/run_server.py -predictor <registered PredictorName>`
