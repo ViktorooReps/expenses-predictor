@@ -6,4 +6,11 @@ if __name__ == '__main__':
     print('finished reading csv! data columns:')
     print(data.columns)
     print('Unique values in category column:')
-    print(data['category'].unique())
+    print(list(data['category'].unique()))
+
+    print('reading csv...')
+    data = pd.read_csv('cache/tinkoff_hackathon_data/avk_hackathon_data_test_transactions.csv')
+    print('finished reading csv! data columns:')
+    print(data.columns)
+    print('Unique values in category column:')
+    print(list(data['category'].unique()))

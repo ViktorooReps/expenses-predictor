@@ -1,0 +1,1 @@
+Some scripts expect `cache/tinkoff_hackathon_data/` directory with dataset files

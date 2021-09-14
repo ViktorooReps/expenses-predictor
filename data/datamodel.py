@@ -1,10 +1,11 @@
 import os
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Optional, Any, Tuple, Dict, Iterable, Iterator, TypeVar, Type
+from typing import Optional, Tuple, Dict, Iterable, Iterator, TypeVar, Type, List
 
 import numpy as np
 
+from models.registered import ExtractorName
 
 Date = int  # month number
 Value = float
@@ -28,6 +29,7 @@ class IDEnum(bytes, Enum):
         obj = bytes.__new__(cls, value, encoding='utf8')
         obj._value_ = value
         obj.id = next(cls2id_generator[cls])
+        obj.toJSON = lambda: value
         return obj
 
     @classmethod
@@ -76,9 +78,14 @@ class Category(IDEnum):
     EDUCATION = 'Образование'
     ART = 'Искусство'
     PHOTO = 'Фото/Видео'
+    MUSIC = 'Музыка'
+    AIR_TRAVEL = 'Авиабилеты'
 
 
-def empty_expenses() -> Dict[Category, Value]:
+Expenses = Dict[Category, Value]
+
+
+def empty_expenses() -> Expenses:
     return {category: 0 for category in Category}
 
 
@@ -93,7 +100,7 @@ class TransactionType(IDEnum):
 @unique
 class Impression(IDEnum):
     LIKE = 'like'
-    FAVOURITE = 'favourite'
+    FAVORITE = 'favorite'
     DISLIKE = 'dislike'
 
 
@@ -101,6 +108,7 @@ class Impression(IDEnum):
 class Gender(IDEnum):
     MALE = 'M'
     FEMALE = 'F'
+    UNKNOWN = 'unk'
 
 
 @unique
@@ -111,6 +119,7 @@ class MaritalStatus(IDEnum):
     SINGLE = 'Холост/не замужем'
     ENGAGED = 'Гражданский брак'
     DIVORCED = 'Разведен (а)'
+    APART = 'Не проживает с супругом (ой)'
 
 
 ProductVector = Tuple[int, int, int, int, int, int, int]
@@ -141,22 +150,23 @@ class Story(object):
 
 class TimeStamp(object):
     __slots__ = (
-        '_date', '_impressions', '_balance_change', '_expenses'
+        '_date', '_impressions', '_balance_change', '_expenses', '_feature_vectors'
     )
 
-    def __init__(self, date: Date, impressions: Optional[Dict[Impression, int]] = None, balance_change: Optional[Value] = None,
-                 expenses: Optional[Dict[Category, Value]] = None):
+    def __init__(self, date: Date, impressions: Optional[Dict[int, Impression]] = None, balance_change: Optional[Value] = None,
+                 expenses: Optional[Expenses] = None, feature_vectors: Optional[Dict[ExtractorName, np.ndarray]] = None):
         self._date = date
         self._impressions = impressions if impressions is not None else {}
         self._balance_change = balance_change if balance_change is not None else 0
         self._expenses = expenses if expenses is not None else empty_expenses()
+        self._feature_vectors = feature_vectors if feature_vectors is not None else {}
 
     @property
     def date(self) -> Date:
         return self._date
 
     @property
-    def impressions(self) -> Dict[Impression, int]:
+    def impressions(self) -> Dict[int, Impression]:
         return self._impressions
 
     @property
@@ -164,8 +174,21 @@ class TimeStamp(object):
         return self._balance_change
 
     @property
-    def expenses(self) -> Dict[Category, Value]:
+    def expenses(self) -> Expenses:
         return self._expenses
+
+    @property
+    def feature_vectors(self) -> Dict[ExtractorName, np.ndarray]:
+        return self._feature_vectors
+
+    def has_feature_vector(self, extractor: ExtractorName) -> bool:
+        return extractor in self._feature_vectors
+
+    def add_feature_vector(self, extractor: ExtractorName, feature_vector: np.ndarray) -> None:
+        self._feature_vectors[extractor] = feature_vector
+
+    def get_feature_vector(self, extractor: ExtractorName) -> np.ndarray:
+        return self._feature_vectors[extractor]
 
 
 def normalize_timeline(timeline: Iterable[TimeStamp]) -> Iterator[TimeStamp]:
@@ -188,17 +211,24 @@ class User(object):
     def __init__(self, user_id: int, feature_vector: np.ndarray, timeline: Iterable[TimeStamp]):
         self._id = user_id
         self._feature_vector = feature_vector
-        self._timeline = tuple(normalize_timeline(timeline))
+        self._timeline: List[TimeStamp] = list(normalize_timeline(timeline))
+
+    @property
+    def id(self) -> int:
+        return self._id
 
     @property
     def feature_vector(self) -> np.ndarray:
         return self._feature_vector
 
+    def feature_vector_at(self, date: Date, extractor: ExtractorName) -> np.ndarray:
+        return np.concatenate((self._feature_vector, self._timeline[date].get_feature_vector(extractor)), axis=0)
+
     @property
-    def timeline(self) -> Tuple[TimeStamp]:
+    def timeline(self) -> List[TimeStamp]:
         return self._timeline
 
-    def get_timeline_at(self, date: Date):
+    def timeline_at(self, date: Date):
         return self._timeline[:date]
 
     @staticmethod
@@ -206,7 +236,7 @@ class User(object):
                                  product_vector: ProductVector):
         arr_shape = len(product_vector) + 5
         arr_buffer = [gender.id, age, marital_status.id, children, region] + list(product_vector)
-        return np.ndarray(shape=(arr_shape, 1), buffer=arr_buffer)
+        return np.ndarray(shape=(arr_shape, 1), buffer=arr_buffer, dtype=np.float)
 
 
 class Dataset(object):
