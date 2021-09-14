@@ -1,3 +1,5 @@
+import enum
+import json
 import os
 from collections import defaultdict
 from enum import Enum, unique
@@ -29,6 +31,7 @@ class IDEnum(bytes, Enum):
         obj = bytes.__new__(cls, value, encoding='utf8')
         obj._value_ = value
         obj.id = next(cls2id_generator[cls])
+        obj.toJSON = lambda: value
         return obj
 
     @classmethod
@@ -77,6 +80,8 @@ class Category(IDEnum):
     EDUCATION = 'Образование'
     ART = 'Искусство'
     PHOTO = 'Фото/Видео'
+    MUSIC = 'Музыка'
+    AIR_TRAVEL = 'Авиабилеты'
 
 
 Expenses = Dict[Category, Value]
@@ -97,7 +102,7 @@ class TransactionType(IDEnum):
 @unique
 class Impression(IDEnum):
     LIKE = 'like'
-    FAVOURITE = 'favourite'
+    FAVORITE = 'favorite'
     DISLIKE = 'dislike'
 
 
@@ -105,6 +110,7 @@ class Impression(IDEnum):
 class Gender(IDEnum):
     MALE = 'M'
     FEMALE = 'F'
+    UNKNOWN = 'unk'
 
 
 @unique
@@ -115,6 +121,7 @@ class MaritalStatus(IDEnum):
     SINGLE = 'Холост/не замужем'
     ENGAGED = 'Гражданский брак'
     DIVORCED = 'Разведен (а)'
+    APART = 'Не проживает с супругом (ой)'
 
 
 ProductVector = Tuple[int, int, int, int, int, int, int]
@@ -148,8 +155,8 @@ class TimeStamp(object):
         '_date', '_impressions', '_balance_change', '_expenses', '_feature_vectors'
     )
 
-    def __init__(self, date: Date, impressions: Optional[Dict[Impression, int]] = None, balance_change: Optional[Value] = None,
-                 expenses: Optional[Dict[Category, Value]] = None, feature_vectors: Optional[Dict[ExtractorName, np.ndarray]] = None):
+    def __init__(self, date: Date, impressions: Optional[Dict[int, Impression]] = None, balance_change: Optional[Value] = None,
+                 expenses: Optional[Expenses] = None, feature_vectors: Optional[Dict[ExtractorName, np.ndarray]] = None):
         self._date = date
         self._impressions = impressions if impressions is not None else {}
         self._balance_change = balance_change if balance_change is not None else 0
@@ -161,7 +168,7 @@ class TimeStamp(object):
         return self._date
 
     @property
-    def impressions(self) -> Dict[Impression, int]:
+    def impressions(self) -> Dict[int, Impression]:
         return self._impressions
 
     @property
@@ -169,11 +176,11 @@ class TimeStamp(object):
         return self._balance_change
 
     @property
-    def expenses(self) -> Dict[Category, Value]:
+    def expenses(self) -> Expenses:
         return self._expenses
 
     @property
-    def feature_vectors(self) -> Dict[ExtractorName, Value]:
+    def feature_vectors(self) -> Dict[ExtractorName, np.ndarray]:
         return self._feature_vectors
 
     def has_feature_vector(self, extractor: ExtractorName) -> bool:
