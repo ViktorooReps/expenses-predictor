@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from models.abstract import AbstractPredictor
 from models.predictors import name2predictor
 from models.registered import PredictorName
-from server.helper import register_user_predictor
+from server.helper import register_user_predictor, register_request_validation_error_handler
 
 if __name__ == '__main__':
     predictor_names = [pn.value for pn in PredictorName]
@@ -19,5 +19,6 @@ if __name__ == '__main__':
     app = FastAPI()
     predictor: AbstractPredictor = name2predictor[PredictorName(args.predictor)]()
 
+    register_request_validation_error_handler(app)
     register_user_predictor(app, endpoint='/', predictor=predictor.predict_users)
     uvicorn.run(app, host='0.0.0.0', port=8000)

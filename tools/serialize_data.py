@@ -119,7 +119,7 @@ if __name__ == '__main__':
 
     min_date = min(collected_dates)
 
-    def diff_month(d1: datetime.date, d2: datetime.date):
+    def diff_month(d1: datetime.date, d2: datetime.date) -> Date:
         return (d1.year - d2.year) * 12 + d1.month - d2.month
 
     def transform_date(full_date: datetime.date) -> Date:
@@ -131,10 +131,12 @@ if __name__ == '__main__':
             timestamps.append(TimeStamp(date=transform_date(dt), expenses={cat: val}))
         for st_id, dt, impression in id2impressions.get(user_id, {}):
             timestamps.append(TimeStamp(date=transform_date(dt), impressions={st_id: impression}))
+        for dt, val in id2balance_chng.get(user_id, {}):
+            timestamps.append(TimeStamp(date=transform_date(dt), balance_change=val))
 
         timestamps = sorted(timestamps, key=lambda _ts: _ts.date)
 
-        def merge_expenses(exp1: Expenses, exp2: Expenses):
+        def merge_expenses(exp1: Expenses, exp2: Expenses) -> Expenses:
             res: Expenses = defaultdict(float)
             for _cat, _val in exp1.items():
                 res[_cat] += _val
@@ -142,7 +144,7 @@ if __name__ == '__main__':
                 res[_cat] += _val
             return res
 
-        def merge_time_stamps(ts1: TimeStamp, ts2: TimeStamp):
+        def merge_time_stamps(ts1: TimeStamp, ts2: TimeStamp) -> TimeStamp:
             if ts1.date != ts2.date:
                 raise ValueError
             balance_change = ts1.balance_change + ts2.balance_change
@@ -167,30 +169,10 @@ if __name__ == '__main__':
 
         return tuple(TimeStampModel.from_time_stamp(ts) for ts in new_timestamps)
 
-    failed_keys: Set = set()
-    missed_value: Dict = defaultdict(int)
-
-    def attempt_to_get(d: Dict, k: Any, default: Any) -> Any:
-        try:
-            return d[k]
-        except KeyError:
-            failed_keys.add(k)
-            missed_value[default] += 1
-            return default
-
-    average_age = int(sum(id2age.values()) / len(id2age))
-    average_children = int(sum(id2children.values()) / len(id2children))
-    default_product_vector = (0, 0, 0, 0, 0, 0, 0)
-
     def create_user_model(user_id: int, id2trans: Dict[int, List[Tuple[Category, datetime.date, Value]]]) -> UserDataModel:
-        return UserDataModel.construct(id=user_id,
-                                       gender=attempt_to_get(id2gender, user_id, Gender.MALE),
-                                       age=attempt_to_get(id2age, user_id, average_age),
-                                       marital_status=attempt_to_get(id2marital_status, user_id, MaritalStatus.UNKNOWN),
-                                       children=attempt_to_get(id2children, user_id, average_children),
-                                       region=attempt_to_get(id2region, user_id, 0),
-                                       product_vector=attempt_to_get(id2product_vector, user_id, default_product_vector),
-                                       timeline=create_timeline(user_id, id2trans))
+        return UserDataModel.construct(id=user_id, gender=id2gender[user_id], age=id2age[user_id],
+                                       marital_status=id2marital_status[user_id], children=id2children[user_id], region=id2region[user_id],
+                                       product_vector=id2product_vector[user_id], timeline=create_timeline(user_id, id2trans))
 
     print('Creating JSON models...')
 
