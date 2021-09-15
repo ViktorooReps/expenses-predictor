@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Optional, TypeVar, Generic, List, Iterable
+from typing import TypeVar, Generic, List, Iterable
 
 import numpy as np
 
@@ -10,14 +10,11 @@ from models.registered import ExtractorName
 class AbstractPredictor(metaclass=ABCMeta):
 
     @abstractmethod
-    def predict(self, user: User, date: Optional[Date] = None) -> Expenses:
+    def predict(self, user: User) -> Expenses:
         pass
 
-    def predict_users(self, users: Iterable[User], dates: Optional[Iterable[Date]] = None) -> List[Expenses]:
-        if dates is not None:
-            return list(self.predict(user, date) for user, date in zip(users, dates))
-        else:
-            return list(self.predict(user) for user in users)
+    def predict_users(self, users: Iterable[User]) -> List[Expenses]:
+        return list(self.predict(user) for user in users)
 
     def _pull_user_features(self, user: User, date: Date) -> np.ndarray:
         return user.feature_vector

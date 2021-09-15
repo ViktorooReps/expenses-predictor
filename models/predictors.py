@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Type, Iterable, List
 
 from fastapi.encoders import jsonable_encoder
-from pydantic import parse_raw_as
+from pydantic import parse_obj_as
 from requests.api import post
 
 from data.datamodel import User, Date, Expenses, empty_expenses
@@ -12,7 +12,7 @@ from models.registered import PredictorName
 
 class StubPredictor(AbstractPredictor):
 
-    def predict(self, user: User, date: Optional[Date] = None) -> Expenses:
+    def predict(self, user: User) -> Expenses:
         return empty_expenses()
 
 
@@ -21,16 +21,16 @@ class RESTPredictor(AbstractPredictor):
     def __init__(self, server_url: str):
         self._server_url = server_url
 
-    def predict_users(self, users: Iterable[User], dates: Optional[Iterable[Date]] = None) -> List[Expenses]:
+    def predict_users(self, users: Iterable[User]) -> List[Expenses]:
         request_models = [UserModel.from_user(user) for user in users]
         request_json = jsonable_encoder(request_models)
         response = post(self._server_url, json=request_json)
         response.raise_for_status()
 
-        return [em.to_expenses() for em in parse_raw_as(List[ExpensesModel], response.json())]
+        return [em.to_expenses() for em in parse_obj_as(List[ExpensesModel], response.json())]
 
     def predict(self, user: User, date: Optional[Date] = None) -> Expenses:
-        return self.predict_users([user], [date] if date is not None else None)[0]
+        return self.predict_users([user])[0]
 
 
 name2predictor: Dict[PredictorName, Type[AbstractPredictor]] = {
