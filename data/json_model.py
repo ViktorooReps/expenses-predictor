@@ -38,11 +38,22 @@ class StoryModel(BaseModel):
         return Story(story_id=self.id, name=self.name, text=self.text)
 
 
+class ExpensesModel(EnumAwareModel):
+    __root__: Expenses
+
+    def to_expenses(self):
+        return self.__root__
+
+    @classmethod
+    def from_expenses(cls, expenses: Expenses):
+        return cls.construct(__root__=expenses)
+
+
 class TimeStampModel(EnumAwareModel):
     date: Date
     impressions: Optional[Dict[int, Impression]]  # story id -> impression
     balance_change: Optional[Value]
-    expenses: Optional[Expenses]
+    expenses: Optional[ExpensesModel]
 
     feature_vectors: Optional[Dict[ExtractorName, List[float]]]
 
@@ -50,13 +61,14 @@ class TimeStampModel(EnumAwareModel):
         use_enum_values = True
 
     def to_time_stamp(self) -> TimeStamp:
-        return TimeStamp(date=self.date, impressions=self.impressions, balance_change=self.balance_change, expenses=self.expenses,
-                         feature_vectors=self._convert_to_numpy(self.feature_vectors))
+        return TimeStamp(date=self.date, impressions=self.impressions, balance_change=self.balance_change,
+                         expenses=self.expenses.to_expenses(), feature_vectors=self._convert_to_numpy(self.feature_vectors))
 
     @classmethod
     def from_time_stamp(cls, timestamp: TimeStamp):
         return cls.construct(date=timestamp.date, impressions=timestamp.impressions, balance_change=timestamp.balance_change,
-                             expenses=timestamp.expenses, feature_vectors=cls._convert_to_list(timestamp.feature_vectors))
+                             expenses=ExpensesModel.from_expenses(timestamp.expenses),
+                             feature_vectors=cls._convert_to_list(timestamp.feature_vectors))
 
     @staticmethod
     def _convert_to_numpy(features: Dict[ExtractorName, List[float]]) -> Dict[ExtractorName, np.ndarray]:

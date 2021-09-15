@@ -1,5 +1,7 @@
 import datetime
+import gc
 import json
+import time
 from collections import defaultdict
 from typing import Tuple, Dict, List, Set, Optional, Any
 
@@ -67,6 +69,19 @@ if __name__ == '__main__':
         collected_dates.add(new_date)
         return new_date
 
+    for index, row in tqdm(story_texts.iterrows(), desc='Filling in id2name, id2text...', total=story_texts.shape[0]):
+        story_id = int(row['story_id'])
+        sid2name[story_id] = str(row['name'])
+        sid2text[story_id] = str(row['story_text'])
+
+    print('Creating JSON models for stories...')
+    story_models: List[StoryModel] = [StoryModel.construct(id=sid, name=sid2name[sid], text=sid2text[sid]) for sid in sid2name]
+    print('Saving stories on disc...')
+    with open('data/json/stories.json', 'w') as f:
+        f.write(StoryModelList.construct(__root__=story_models).json())
+    gc.collect()
+    time.sleep(3)  # wait for gc
+
     for index, row in tqdm(account_x_balance.dropna().iterrows(), desc='Filling in id2balance_chng...', total=account_x_balance.shape[0]):
         balance_chng = float(row['balance_chng'])
         if balance_chng is not float('nan'):
@@ -86,11 +101,6 @@ if __name__ == '__main__':
         gen = row['gender_cd']
         id2gender[party_id] = Gender(gen) if not pd.isna(gen) else Gender.UNKNOWN
 
-    for index, row in tqdm(story_texts.iterrows(), desc='Filling in id2name, id2text...', total=story_texts.shape[0]):
-        story_id = int(row['story_id'])
-        sid2name[story_id] = str(row['name'])
-        sid2text[story_id] = str(row['story_text'])
-
     for index, row in tqdm(story_logs.iterrows(), desc='Filling in id2impressions...', total=story_logs.shape[0]):
         pid = int(row['party_rk'])
         sid = int(row['story_id'])
@@ -108,6 +118,8 @@ if __name__ == '__main__':
         ct = str(row['category'])
         category = Category(ct) if not ct == 'nan' else Category.UNKNOWN
         id2train_transactions[pid].append((category, date, amount))
+    gc.collect()
+    time.sleep(3)  # wait for gc
 
     for index, row in tqdm(test_transactions.iterrows(), desc='Filling in id2test_transactions...', total=test_transactions.shape[0]):
         pid = int(row['party_rk'])
@@ -116,25 +128,31 @@ if __name__ == '__main__':
         ct = str(row['category'])
         category = Category(ct) if not ct == 'nan' else Category.UNKNOWN
         id2test_transactions[pid].append((category, date, amount))
+    gc.collect()
+    time.sleep(3)  # wait for gc
 
     min_date = min(collected_dates)
 
-    def diff_month(d1: datetime.date, d2: datetime.date):
+    def diff_month(d1: datetime.date, d2: datetime.date) -> Date:
         return (d1.year - d2.year) * 12 + d1.month - d2.month
 
     def transform_date(full_date: datetime.date) -> Date:
         return diff_month(full_date, min_date)
 
-    def create_timeline(user_id: int, id2trans: Dict[int, List[Tuple[Category, datetime.date, Value]]]) -> Tuple[TimeStampModel, ...]:
+    def create_timeline(user_id: int,
+                        id2trans: Dict[int, List[Tuple[Category, datetime.date, Value]]], *, add_meta: bool) -> Tuple[TimeStampModel, ...]:
         timestamps: List[TimeStamp] = []
         for cat, dt, val in id2trans.get(user_id, {}):
             timestamps.append(TimeStamp(date=transform_date(dt), expenses={cat: val}))
-        for st_id, dt, impression in id2impressions.get(user_id, {}):
-            timestamps.append(TimeStamp(date=transform_date(dt), impressions={st_id: impression}))
+        if add_meta:
+            for st_id, dt, impression in id2impressions.get(user_id, {}):
+                timestamps.append(TimeStamp(date=transform_date(dt), impressions={st_id: impression}))
+            for dt, val in id2balance_chng.get(user_id, {}):
+                timestamps.append(TimeStamp(date=transform_date(dt), balance_change=val))
 
         timestamps = sorted(timestamps, key=lambda _ts: _ts.date)
 
-        def merge_expenses(exp1: Expenses, exp2: Expenses):
+        def merge_expenses(exp1: Expenses, exp2: Expenses) -> Expenses:
             res: Expenses = defaultdict(float)
             for _cat, _val in exp1.items():
                 res[_cat] += _val
@@ -142,7 +160,7 @@ if __name__ == '__main__':
                 res[_cat] += _val
             return res
 
-        def merge_time_stamps(ts1: TimeStamp, ts2: TimeStamp):
+        def merge_time_stamps(ts1: TimeStamp, ts2: TimeStamp) -> TimeStamp:
             if ts1.date != ts2.date:
                 raise ValueError
             balance_change = ts1.balance_change + ts2.balance_change
@@ -167,42 +185,47 @@ if __name__ == '__main__':
 
         return tuple(TimeStampModel.from_time_stamp(ts) for ts in new_timestamps)
 
-    failed_keys: Set = set()
-    missed_value: Dict = defaultdict(int)
+    def create_user_model(user_id: int, id2trans: Dict[int, List[Tuple[Category, datetime.date, Value]]], *, add_meta: bool) -> UserDataModel:
+        return UserDataModel.construct(id=user_id, gender=id2gender[user_id], age=id2age[user_id],
+                                       marital_status=id2marital_status[user_id], children=id2children[user_id], region=id2region[user_id],
+                                       product_vector=id2product_vector[user_id],
+                                       timeline=create_timeline(user_id, id2trans, add_meta=add_meta))
 
-    def attempt_to_get(d: Dict, k: Any, default: Any) -> Any:
-        try:
-            return d[k]
-        except KeyError:
-            failed_keys.add(k)
-            missed_value[default] += 1
-            return default
 
-    average_age = int(sum(id2age.values()) / len(id2age))
-    average_children = int(sum(id2children.values()) / len(id2children))
-    default_product_vector = (0, 0, 0, 0, 0, 0, 0)
-
-    def create_user_model(user_id: int, id2trans: Dict[int, List[Tuple[Category, datetime.date, Value]]]) -> UserDataModel:
-        return UserDataModel.construct(id=user_id,
-                                       gender=attempt_to_get(id2gender, user_id, Gender.MALE),
-                                       age=attempt_to_get(id2age, user_id, average_age),
-                                       marital_status=attempt_to_get(id2marital_status, user_id, MaritalStatus.UNKNOWN),
-                                       children=attempt_to_get(id2children, user_id, average_children),
-                                       region=attempt_to_get(id2region, user_id, 0),
-                                       product_vector=attempt_to_get(id2product_vector, user_id, default_product_vector),
-                                       timeline=create_timeline(user_id, id2trans))
-
-    print('Creating JSON models...')
-
-    train_user_models: List[UserDataModel] = [create_user_model(user_id, id2train_transactions) for user_id in id2train_transactions]
-    test_user_models: List[UserDataModel] = [create_user_model(user_id, id2test_transactions) for user_id in id2test_transactions]
-    story_models: List[StoryModel] = [StoryModel.construct(id=sid, name=sid2name[sid], text=sid2text[sid]) for sid in sid2name]
-
-    print('Saving models on disc...')
-
+    print('Creating JSON models for train users...')
+    train_user_models: List[UserDataModel] = [create_user_model(user_id, id2train_transactions, add_meta=True)
+                                              for user_id in id2train_transactions]
+    print('Saving train users on disc...')
     with open('data/json/users_train.json', 'w') as f:
         f.write(UserDataModelList.construct(__root__=train_user_models).json())
+    gc.collect()
+    time.sleep(3)  # wait for gc
+
+    print('Creating JSON models for test users...')
+    test_user_models: List[UserDataModel] = [create_user_model(user_id, id2test_transactions, add_meta=False)
+                                             for user_id in id2test_transactions]
+    print('Saving test users on disc...')
     with open('data/json/users_test.json', 'w') as f:
         f.write(UserDataModelList.construct(__root__=test_user_models).json())
-    with open('data/json/stories.json', 'w') as f:
-        f.write(StoryModelList.construct(__root__=story_models).json())
+    gc.collect()
+    time.sleep(3)  # wait for gc
+
+    print('Merging transactions...')
+    id2merged_transactions: Dict[int, List[Tuple[Category, datetime.date, Value]]] = defaultdict(list)
+    for uid, transactions in id2train_transactions.items():
+        id2merged_transactions[uid].extend(transactions)
+    for uid, transactions in id2test_transactions.items():
+        if uid in id2train_transactions:
+            id2merged_transactions[uid].extend(transactions)
+    gc.collect()
+    time.sleep(3)  # wait for gc
+
+    print('Creating JSON models for merged users...')
+    merged_user_models: List[UserDataModel] = [create_user_model(user_id, id2merged_transactions, add_meta=True)
+                                               for user_id in id2merged_transactions]
+    print('Saving merged users on disc...')
+    with open('data/json/users_merged.json', 'w') as f:
+        f.write(UserDataModelList.construct(__root__=merged_user_models).json())
+    gc.collect()
+    time.sleep(3)  # wait for gc
+
