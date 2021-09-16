@@ -3,7 +3,7 @@ from typing import TypeVar, Generic, List, Iterable
 
 import numpy as np
 
-from data.datamodel import User, Date, TimeStamp, Expenses, Category
+from data.datamodel import User, Date, TimeStamp, Expenses, Category, Value
 from models.registered import ExtractorName
 
 
@@ -16,17 +16,17 @@ class AbstractPredictor(metaclass=ABCMeta):
     def predict_users(self, users: Iterable[User]) -> List[Expenses]:
         return list(self.predict(user) for user in users)
 
-    def _pull_user_features(self, user: User, date: Date) -> np.ndarray:
+    def _pull_user_features(self, user: User, date: Date) -> np.array:
         return user.feature_vector
 
-    def _pull_user_expenses(self, user: User, date: Date) -> np.ndarray:
+    def _pull_user_expenses(self, user: User, date: Date) -> np.array:
         total_expenses = len(Category)
-        expenses = [0] * total_expenses
+        expenses = np.zeros(total_expenses, dtype=float)
 
-        for category, expense in user.timeline[date].expenses:
+        for category, expense in user.timeline[date].expenses.items():
             expenses[category.id] = expense
 
-        return np.ndarray(shape=(total_expenses, 1), buffer=expenses, dtype=np.float)
+        return expenses
 
 
 class AbstractExtractorAwarePredictor(AbstractPredictor, metaclass=ABCMeta):
@@ -34,7 +34,7 @@ class AbstractExtractorAwarePredictor(AbstractPredictor, metaclass=ABCMeta):
     def __init__(self, extractor: ExtractorName):
         self._extractor = extractor
 
-    def _pull_user_features(self, user: User, date: Date) -> np.ndarray:
+    def _pull_user_features(self, user: User, date: Date) -> np.array:
         return user.feature_vector_at(date, extractor=self._extractor)
 
     @property
@@ -54,5 +54,5 @@ class AbstractPredictorWrapper(AbstractPredictor, Generic[_PredictorType], metac
 class AbstractExtractor(metaclass=ABCMeta):
 
     @abstractmethod
-    def extract(self, timestamp: TimeStamp, *, force=False) -> np.ndarray:
+    def extract(self, timestamp: TimeStamp, *, force=False) -> np.array:
         pass

@@ -71,11 +71,11 @@ class TimeStampModel(EnumAwareModel):
                              feature_vectors=cls._convert_to_list(timestamp.feature_vectors))
 
     @staticmethod
-    def _convert_to_numpy(features: Dict[ExtractorName, List[float]]) -> Dict[ExtractorName, np.ndarray]:
+    def _convert_to_numpy(features: Dict[ExtractorName, List[float]]) -> Dict[ExtractorName, np.array]:
         return {name: np.array(arr, dtype=np.float) for name, arr in features.items()}
 
     @staticmethod
-    def _convert_to_list(features: Dict[ExtractorName, np.ndarray]) -> Dict[ExtractorName, List[float]]:
+    def _convert_to_list(features: Dict[ExtractorName, np.array]) -> Dict[ExtractorName, List[float]]:
         return {name: arr.tolist() for name, arr in features.items()}
 
 

@@ -1,10 +1,11 @@
 from typing import Optional, Dict, Type, Iterable, List
 
+import numpy as np
 from fastapi.encoders import jsonable_encoder
 from pydantic import parse_obj_as
 from requests.api import post
 
-from data.datamodel import User, Date, Expenses, empty_expenses
+from data.datamodel import User, Date, Expenses, empty_expenses, Category, Value
 from data.json_model import UserModel, ExpensesModel
 from models.abstract import AbstractPredictor
 from models.registered import PredictorName
@@ -28,6 +29,25 @@ class RESTPredictor(AbstractPredictor):
         response.raise_for_status()
 
         return [em.to_expenses() for em in parse_obj_as(List[ExpensesModel], response.json())]
+
+    def predict(self, user: User, date: Optional[Date] = None) -> Expenses:
+        return self.predict_users([user])[0]
+
+
+class BasePredictor(AbstractPredictor):
+
+    def predict_users(self, users: Iterable[User]) -> List[Expenses]:
+        all_expenses = []
+        for user in users:
+            user_expenses = np.zeros(len(Category), dtype=float)
+            for month in user.timeline:
+                user_expenses += super()._pull_user_expenses(user, month.date)
+            user_expenses /= len(user.timeline)
+            expenses = empty_expenses()
+            for id in range(len(Category)):
+                expenses[Category.from_id(id)] = user_expenses[id]
+            all_expenses.append(expenses)
+        return all_expenses
 
     def predict(self, user: User, date: Optional[Date] = None) -> Expenses:
         return self.predict_users([user])[0]
