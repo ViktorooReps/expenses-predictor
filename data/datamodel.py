@@ -155,7 +155,7 @@ class TimeStamp(object):
     )
 
     def __init__(self, date: Date, impressions: Optional[Dict[int, Impression]] = None, balance_change: Optional[Value] = None,
-                 expenses: Optional[Expenses] = None, feature_vectors: Optional[Dict[ExtractorName, np.ndarray]] = None):
+                 expenses: Optional[Expenses] = None, feature_vectors: Optional[Dict[ExtractorName, np.array]] = None):
         self._date = date
         self._impressions = impressions if impressions is not None else {}
         self._balance_change = balance_change if balance_change is not None else 0
@@ -179,16 +179,16 @@ class TimeStamp(object):
         return self._expenses
 
     @property
-    def feature_vectors(self) -> Dict[ExtractorName, np.ndarray]:
+    def feature_vectors(self) -> Dict[ExtractorName, np.array]:
         return self._feature_vectors
 
     def has_feature_vector(self, extractor: ExtractorName) -> bool:
         return extractor in self._feature_vectors
 
-    def add_feature_vector(self, extractor: ExtractorName, feature_vector: np.ndarray) -> None:
+    def add_feature_vector(self, extractor: ExtractorName, feature_vector: np.array) -> None:
         self._feature_vectors[extractor] = feature_vector
 
-    def get_feature_vector(self, extractor: ExtractorName) -> np.ndarray:
+    def get_feature_vector(self, extractor: ExtractorName) -> np.array:
         return self._feature_vectors[extractor]
 
 
@@ -209,7 +209,7 @@ class User(object):
         '_id', '_feature_vector', '_timeline'
     )
 
-    def __init__(self, user_id: int, feature_vector: np.ndarray, timeline: Iterable[TimeStamp]):
+    def __init__(self, user_id: int, feature_vector: np.array, timeline: Iterable[TimeStamp]):
         self._id = user_id
         self._feature_vector = feature_vector
         self._timeline: List[TimeStamp] = list(normalize_timeline(timeline))
@@ -219,10 +219,10 @@ class User(object):
         return self._id
 
     @property
-    def feature_vector(self) -> np.ndarray:
+    def feature_vector(self) -> np.array:
         return self._feature_vector
 
-    def feature_vector_at(self, date: Date, extractor: ExtractorName) -> np.ndarray:
+    def feature_vector_at(self, date: Date, extractor: ExtractorName) -> np.array:
         return np.concatenate((self._feature_vector, self._timeline[date].get_feature_vector(extractor)), axis=0)
 
     @property
@@ -235,9 +235,8 @@ class User(object):
     @staticmethod
     def calculate_feature_vector(gender: Gender, age: int, marital_status: MaritalStatus, children: int, region: int,
                                  product_vector: ProductVector):
-        arr_shape = len(product_vector) + 5
         arr_buffer = [gender.id, age, marital_status.id, children, region] + list(product_vector)
-        return np.ndarray(shape=(arr_shape, 1), buffer=arr_buffer, dtype=np.float)
+        return np.array(arr_buffer)
 
     def popped(self) -> 'User':
         return User(user_id=self._id, feature_vector=self._feature_vector, timeline=self._timeline[:-1])

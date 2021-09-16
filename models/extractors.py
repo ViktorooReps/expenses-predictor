@@ -9,8 +9,8 @@ from models.registered import ExtractorName
 
 class StubExtractor(AbstractExtractor):
 
-    def extract(self, timestamp: TimeStamp, *, force=False) -> np.ndarray:
-        return np.ndarray(shape=(1, 1), buffer=timestamp.balance_change, dtype=np.float)
+    def extract(self, timestamp: TimeStamp, *, force=False) -> np.array:
+        return np.array([timestamp.balance_change])
 
 
 name2extractor: Dict[ExtractorName, Type[AbstractExtractor]] = {
