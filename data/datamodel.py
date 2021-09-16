@@ -1,4 +1,5 @@
 import os
+import pickle
 from collections import defaultdict
 from enum import Enum, unique
 from typing import Optional, Tuple, Dict, Iterable, Iterator, TypeVar, Type, List
@@ -238,11 +239,49 @@ class User(object):
         arr_buffer = [gender.id, age, marital_status.id, children, region] + list(product_vector)
         return np.ndarray(shape=(arr_shape, 1), buffer=arr_buffer, dtype=np.float)
 
+    def popped(self) -> 'User':
+        return User(user_id=self._id, feature_vector=self._feature_vector, timeline=self._timeline[:-1])
 
-class Dataset(object):
+
+class Serializable(object):
+
+    def __init__(self, save_path: os.PathLike):
+        self.save_path = save_path
+
+    def save(self, save_path: Optional[os.PathLike] = None) -> None:
+        if save_path is None:
+            save_path = self.save_path
+
+        with open(save_path, 'wb') as f:
+            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(load_path: os.PathLike) -> 'Serializable':
+        with open(load_path, 'rb') as f:
+            return pickle.load(f)
+
+
+class Dataset(Serializable):
     __slots__ = (
         '_id2user', '_id2story'
     )
 
-    def load_dataset(self, users: os.PathLike, stories: os.PathLike):
-        pass
+    def __init__(self, users: Iterable[User], stories: Iterable[Story], save_path: os.PathLike):
+        super(Dataset, self).__init__(save_path)
+        self._id2user = {user.id: user for user in users}
+        self._id2story = {story.id: story for story in stories}
+
+    @property
+    def users(self) -> List[User]:
+        return list(self._id2user.values())
+
+    @property
+    def stories(self) -> List[Story]:
+        return list(self._id2story.values())
+
+    @property
+    def data(self) -> Tuple[List[User], List[Expenses]]:
+        """Returns users without last timestamp (X) and their expenses on last timestamp (y)"""
+        popped_users = [user.popped() for user in self._id2user]
+        expenses = [user.timeline[-1].expenses for user in self._id2user]
+        return popped_users, expenses
