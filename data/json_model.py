@@ -62,7 +62,8 @@ class TimeStampModel(EnumAwareModel):
 
     def to_time_stamp(self) -> TimeStamp:
         return TimeStamp(date=self.date, impressions=self.impressions, balance_change=self.balance_change,
-                         expenses=self.expenses.to_expenses(), feature_vectors=self._convert_to_numpy(self.feature_vectors))
+                         expenses=self.expenses.to_expenses(),
+                         feature_vectors=self._convert_to_numpy(self.feature_vectors) if self.feature_vectors is not None else {})
 
     @classmethod
     def from_time_stamp(cls, timestamp: TimeStamp):
@@ -96,8 +97,8 @@ class UserDataModel(EnumAwareModel):
 
     def to_user(self) -> User:
         feature_vector = np.array(self.feature_vector, dtype=np.float) if self.feature_vector is not None else \
-            User.calculate_feature_vector(gender=self.gender, age=self.age, marital_status=self.marital_status, children=self.children,
-                                          region=self.region, product_vector=self.product_vector)
+            User.calculate_feature_vector(gender=Gender(self.gender), age=self.age, marital_status=MaritalStatus(self.marital_status),
+                                          children=self.children, region=self.region, product_vector=self.product_vector)
 
         return User(user_id=self.id, feature_vector=feature_vector, timeline=[tsm.to_time_stamp() for tsm in self.timeline])
 

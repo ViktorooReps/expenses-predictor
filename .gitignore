@@ -131,3 +131,5 @@ dmypy.json
 # Project ignore:
 /cache/
 data/json/
+models/pickled/
+pickled/
