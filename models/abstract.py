@@ -3,8 +3,15 @@ from typing import TypeVar, Generic, List, Iterable
 
 import numpy as np
 
-from data.datamodel import User, Date, TimeStamp, Expenses, Category, Value
+
+from data.datamodel import User, Date, TimeStamp, Expenses, Category, Dataset, Serializable
 from models.registered import ExtractorName
+
+
+class AbstractTrainableModel(Serializable):
+
+    def fit(self, data: Dataset) -> None:
+        pass
 
 
 class AbstractPredictor(metaclass=ABCMeta):
