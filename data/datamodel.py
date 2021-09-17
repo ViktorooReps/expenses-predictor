@@ -2,7 +2,7 @@ import os
 import pickle
 from collections import defaultdict
 from enum import Enum, unique
-from typing import Optional, Tuple, Dict, Iterable, Iterator, TypeVar, Type, List
+from typing import Optional, Tuple, Dict, Iterable, Iterator, TypeVar, Type, List, Callable
 
 import numpy as np
 
@@ -88,14 +88,6 @@ Expenses = Dict[Category, Value]
 
 def empty_expenses() -> Expenses:
     return {category: 0 for category in Category}
-
-
-@unique
-class TransactionType(IDEnum):
-    PURCHASE = 'Покупка'
-    SERVICE = 'Оплата услуг'
-    CASH = 'Снятие наличных'
-    PAYMENT = 'Платеж'
 
 
 @unique
@@ -191,6 +183,14 @@ class TimeStamp(object):
     def get_feature_vector(self, extractor: ExtractorName) -> np.array:
         return self._feature_vectors[extractor]
 
+    def with_changes(self, *, impressions: Optional[Dict[int, Impression]] = None, balance_change: Optional[Value] = None,
+                     expenses: Optional[Expenses] = None, feature_vectors: Optional[Dict[ExtractorName, np.array]] = None) -> 'TimeStamp':
+        return TimeStamp(date=self._date,
+                         impressions=impressions if impressions is not None else self._impressions,
+                         balance_change=balance_change if balance_change is not None else self._balance_change,
+                         expenses=expenses if expenses is not None else self._expenses,
+                         feature_vectors=feature_vectors if feature_vectors is not None else self._feature_vectors)
+
 
 def normalize_timeline(timeline: Iterable[TimeStamp]) -> Iterator[TimeStamp]:
     prev_timestamp = TimeStamp(date=-1)
@@ -236,10 +236,18 @@ class User(object):
     def calculate_feature_vector(gender: Gender, age: int, marital_status: MaritalStatus, children: int, region: int,
                                  product_vector: ProductVector):
         arr_buffer = [gender.id, age, marital_status.id, children, region] + list(product_vector)
-        return np.array(arr_buffer)
+        return np.array(arr_buffer, dtype=float)
 
     def popped(self) -> 'User':
         return User(user_id=self._id, feature_vector=self._feature_vector, timeline=self._timeline[:-1])
+
+    def with_changes(self, *, feature_vector: Optional[np.array] = None, timeline: Optional[Iterable[TimeStamp]] = None) -> 'User':
+        return User(user_id=self._id,
+                    feature_vector=feature_vector if feature_vector is not None else self._feature_vector,
+                    timeline=timeline if timeline is not None else self._timeline)
+
+
+AnySerializable = TypeVar('AnySerializable', bound='Serializable')
 
 
 class Serializable(object):
@@ -254,8 +262,8 @@ class Serializable(object):
         with open(save_path, 'wb') as f:
             pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    @staticmethod
-    def load(load_path: os.PathLike) -> 'Serializable':
+    @classmethod
+    def load(cls: AnySerializable, load_path: os.PathLike) -> AnySerializable:
         with open(load_path, 'rb') as f:
             return pickle.load(f)
 
@@ -281,6 +289,9 @@ class Dataset(Serializable):
     @property
     def data(self) -> Tuple[List[User], List[Expenses]]:
         """Returns users without last timestamp (X) and their expenses on last timestamp (y)"""
-        popped_users = [user.popped() for user in self._id2user]
-        expenses = [user.timeline[-1].expenses for user in self._id2user]
+        popped_users = [user.popped() for user in self.users]
+        expenses = [user.timeline[-1].expenses for user in self.users]
         return popped_users, expenses
+
+    def modify_users(self, modifier: Callable[[List[User]], List[User]]) -> None:
+        self._id2user = {user.id: user for user in modifier(list(self._id2user.values()))}

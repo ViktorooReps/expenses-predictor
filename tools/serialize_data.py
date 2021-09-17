@@ -3,12 +3,13 @@ import gc
 import json
 import time
 from collections import defaultdict
+from pathlib import Path
 from typing import Tuple, Dict, List, Set, Optional, Any
 
 import pandas as pd
 from tqdm import tqdm
 
-from data.datamodel import Gender, MaritalStatus, Category, Value, Impression, Date, TimeStamp, Expenses
+from data.datamodel import Gender, MaritalStatus, Category, Value, Impression, Date, TimeStamp, Expenses, Story, User, Dataset
 from data.json_model import UserDataModel, TimeStampModel, StoryModel, UserDataModelList, StoryModelList
 
 if __name__ == '__main__':
@@ -74,11 +75,17 @@ if __name__ == '__main__':
         sid2name[story_id] = str(row['name'])
         sid2text[story_id] = str(row['story_text'])
 
+    """
     print('Creating JSON models for stories...')
     story_models: List[StoryModel] = [StoryModel.construct(id=sid, name=sid2name[sid], text=sid2text[sid]) for sid in sid2name]
     print('Saving stories on disc...')
     with open('data/json/stories.json', 'w') as f:
         f.write(StoryModelList.construct(__root__=story_models).json())
+    gc.collect()
+    time.sleep(3)  # wait for gc """
+
+    print('Creating stories...')
+    stories: List[Story] = [StoryModel.construct(id=sid, name=sid2name[sid], text=sid2text[sid]).to_story() for sid in sid2name]
     gc.collect()
     time.sleep(3)  # wait for gc
 
@@ -191,7 +198,7 @@ if __name__ == '__main__':
                                        product_vector=id2product_vector[user_id],
                                        timeline=create_timeline(user_id, id2trans, add_meta=add_meta))
 
-
+    """
     print('Creating JSON models for train users...')
     train_user_models: List[UserDataModel] = [create_user_model(user_id, id2train_transactions, add_meta=True)
                                               for user_id in id2train_transactions]
@@ -208,6 +215,16 @@ if __name__ == '__main__':
     with open('data/json/users_test.json', 'w') as f:
         f.write(UserDataModelList.construct(__root__=test_user_models).json())
     gc.collect()
+    time.sleep(3)  # wait for gc """
+
+    print('Creating train users...')
+    train_users: List[User] = [create_user_model(uid, id2train_transactions, add_meta=True).to_user() for uid in id2train_transactions]
+    gc.collect()
+    time.sleep(3)  # wait for gc
+
+    print('Saving training dataset...')
+    Dataset(users=train_users, stories=stories, save_path=Path('pickled/data/train_dataset.pkl')).save()
+    gc.collect()
     time.sleep(3)  # wait for gc
 
     print('Merging transactions...')
@@ -220,6 +237,7 @@ if __name__ == '__main__':
     gc.collect()
     time.sleep(3)  # wait for gc
 
+    """
     print('Creating JSON models for merged users...')
     merged_user_models: List[UserDataModel] = [create_user_model(user_id, id2merged_transactions, add_meta=True)
                                                for user_id in id2merged_transactions]
@@ -227,5 +245,14 @@ if __name__ == '__main__':
     with open('data/json/users_merged.json', 'w') as f:
         f.write(UserDataModelList.construct(__root__=merged_user_models).json())
     gc.collect()
+    time.sleep(3)  # wait for gc """
+
+    print('Creating test users...')
+    test_users: List[User] = [create_user_model(uid, id2merged_transactions, add_meta=True).to_user() for uid in id2merged_transactions]
+    gc.collect()
     time.sleep(3)  # wait for gc
 
+    print('Saving test  dataset...')
+    Dataset(users=test_users, stories=stories, save_path=Path('pickled/data/test_dataset.pkl')).save()
+    gc.collect()
+    time.sleep(3)  # wait for gc
