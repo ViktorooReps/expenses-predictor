@@ -5,9 +5,9 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import parse_obj_as
 from requests.api import post
 
-from data.datamodel import User, Date, Expenses, empty_expenses, Category
+from data.datamodel import User, Date, Expenses, empty_expenses, Category, Value
 from data.json_model import UserModel, ExpensesModel
-from models.abstract import AbstractPredictor, AbstractTrainablePredictor
+from models.abstract import AbstractPredictor
 from models.registered import PredictorName
 
 
@@ -44,8 +44,8 @@ class BasePredictor(AbstractPredictor):
                 user_expenses += super()._pull_user_expenses(user, month.date)
             user_expenses /= len(user.timeline)
             expenses = empty_expenses()
-            for _id in range(len(Category)):
-                expenses[Category.from_id(_id)] = user_expenses[_id]
+            for id in range(len(Category)):
+                expenses[Category.from_id(id)] = user_expenses[id]
             all_expenses.append(expenses)
         return all_expenses
 
@@ -57,5 +57,3 @@ name2predictor: Dict[PredictorName, Type[AbstractPredictor]] = {
     PredictorName.STUB: StubPredictor,
     PredictorName.BASELINE: BasePredictor
 }
-
-name2trainable_predictor: Dict[PredictorName, Type[AbstractTrainablePredictor]] = {}
