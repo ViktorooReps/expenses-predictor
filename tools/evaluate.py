@@ -49,23 +49,24 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('-predictor', choices=predictor_names, type=str, default=PredictorName.STUB.value)
-    parser.add_argument('-datapath', type=PathLike)
-    parser.add_argument('--modelpath', type=PathLike, default=None)
+    parser.add_argument('-datapath', type=str)
 
     args = parser.parse_args()
 
-    mae = np.array([0])
-    per_of_rank_guesses = np.array([0])
-    per_of_top_guesses = np.array([0])
+    predictor = name2predictor[args.predictor]
+    mae, per_of_rank_guesses, per_of_top_guesses = evaluate(predictor, args.datapath)
 
-    if args.modelpath is not None:
-        print("Еще не написал(")
+    print("__________________________________________________________")
+    print(f"Метрики, собранные по прогнозу модели {args.predictor}:\n")
+    print("__________________________________________________________")
 
-    else:
-        predictor = name2predictor[args.predictor]
-        mae, per_of_rank_guesses, per_of_top_guesses = evaluate(predictor, args.datapath)
+    for index in range(mae.size):
+        print(f"Категория {Category.from_id(index)}:\n")
+        print(f"Средняя абсолютная ошибка по категории: {mae[index]}\n")
+        print(f"Процент верных прогнозов попадания в Топ-5: {per_of_top_guesses[index]}\n\n\n")
 
-    print("MAE:\n", mae)
-    print("Процент верных прогнозов Топ1, Топ2, Топ3, Топ4, Топ5:\n", per_of_rank_guesses)
-    print("Процент верных прогнозов попадания в топ-5:\n", per_of_top_guesses)
+    print(f"Средняя абсолютная ошибка по всем категориям: {mae.mean()}\n\n\n")
 
+    for index in range(per_of_rank_guesses.size):
+        print(f"Процент удачных прогнозов категории Топ-{index}: {per_of_rank_guesses[index]}\n\n\n")
+    print("__________________________________________________________\n")

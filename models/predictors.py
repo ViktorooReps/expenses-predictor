@@ -53,6 +53,7 @@ class BasePredictor(AbstractPredictor):
         return self.predict_users([user])[0]
 
 
-name2predictor: Dict[PredictorName, Type[AbstractPredictor]] = {
-    PredictorName.STUB: StubPredictor
+name2predictor: Dict[str, Type[AbstractPredictor]] = {
+    PredictorName.STUB.value: StubPredictor,
+    PredictorName.BASELINE.value: BasePredictor
 }
