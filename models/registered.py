@@ -8,3 +8,4 @@ class ExtractorName(Enum):
 class PredictorName(Enum):
     STUB = 'stub'
     BASELINE = 'baseline'
+    EMA = 'ema'

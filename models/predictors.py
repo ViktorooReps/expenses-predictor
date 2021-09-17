@@ -65,6 +65,7 @@ class SimpleModel(nn.Module):
         user_pred_expenses += self.alphas * (user_expenses - user_pred_expenses)
         return user_pred_expenses
 
+
 def one_step(self, model: SimpleModel, loss_funct: nn.Module, user: User, optimizer: nn.Module = None):
 
     user_expenses = torch.Tensor(super()._pull_user_expenses(user, user.timeline[0].date))
@@ -116,7 +117,7 @@ class EMAPredictor(AbstractPredictor):
 
         return model.get_parameter('alphas').numpy()
 
-    def predict_users(self, users: Iterable[User]) -> List[Expenses]
+    def predict_users(self, users: Iterable[User]) -> List[Expenses]:
         all_expenses = []
         for user in users:
             alphas = self.best_alphas(user)
