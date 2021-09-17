@@ -9,11 +9,10 @@ from data.datamodel import Dataset, Category
 from models.abstract import AbstractPredictor
 from models.predictors import name2predictor
 from models.registered import PredictorName
-from helpers import expenses_to_np_array, top_five_categories
+from tools.helpers import expenses_to_np_array, top_five_categories
 
 
-def evaluate(model: AbstractPredictor, data_path: PathLike) -> Tuple[np.array, np.array, np.array, np.array, float]:
-    dataset: Dataset = Dataset.load(data_path)
+def evaluate(model: AbstractPredictor, dataset: Dataset) -> Tuple[np.array, np.array, np.array, np.array, float]:
     users, expenses = dataset.data
 
     predict_expenses = model.predict_users(users)
@@ -58,11 +57,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     predictor = name2predictor[PredictorName(args.predictor)]()
-    mae, per_of_rank_guesses, per_of_top_guesses, rmsle_by_category, rmsle_for_all = evaluate(predictor, args.datapath)
+    dataset = Dataset.load(args.datapath)
+    mae, per_of_rank_guesses, per_of_top_guesses, rmsle_by_category, rmsle_for_all = evaluate(predictor, dataset)
 
     print("__________________________________________________________")
-    print(f"Метрики, собранные по прогнозу модели {args.predictor}:\n")
-    print("__________________________________________________________")
+    print(f"Метрики, собранные по прогнозу модели {args.predictor}:")
+    print("__________________________________________________________\n")
 
     for index in range(mae.size):
         print(f"Категория {Category.from_id(index)}:")
@@ -70,8 +70,8 @@ if __name__ == '__main__':
         print(f"RMSLE по категории: {rmsle_by_category[index]}")
         print(f"Процент верных прогнозов попадания в Топ-5: {per_of_top_guesses[index]}\n")
 
-    print(f"MAE по всем категориям: {mae.mean()}")
-    print(f"RMSLE по всем категориям: {rmsle_for_all}\n")
+    print(f"MAE по всем категориям: {np.mean(mae)}")
+    print(f"RMSLE по всем категориям: {np.mean(rmsle_by_category)}\n")
 
     for index in range(per_of_rank_guesses.size):
         print(f"Процент удачных прогнозов категории Топ-{index}: {per_of_rank_guesses[index]}")
