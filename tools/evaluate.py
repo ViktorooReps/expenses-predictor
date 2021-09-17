@@ -11,7 +11,7 @@ from models.registered import PredictorName
 from helpers import expenses_to_np_array, top_five_categories
 
 
-def evaluate(model: AbstractPredictor, data_path: PathLike) -> Tuple[np.array, np.array, np.array]:
+def evaluate(model: AbstractPredictor, data_path: PathLike) -> Tuple[np.array, np.array, np.array, np.array, float]:
     dataset: Dataset = Dataset.load(data_path)
     users, expenses = dataset.data
 
@@ -20,7 +20,12 @@ def evaluate(model: AbstractPredictor, data_path: PathLike) -> Tuple[np.array, n
     predict_array = np.array([expenses_to_np_array(expense) for expense in predict_expenses])
     test_array = np.array([expenses_to_np_array(expense) for expense in expenses])
 
-    mae_by_category = np.mean(abs(test_array - predict_array), axis=1)
+    mae_by_category = np.mean(abs(test_array - predict_array), axis=0)
+
+    rmsle_by_category = np.sqrt(
+        np.sum((np.log(predict_array + 1) - np.log(test_array + 1)) ** 2, axis=0) / len(predict_array[0]))
+
+    rmsle_for_all = np.sqrt(np.sum((np.log(predict_array + 1) - np.log(test_array + 1)) ** 2) / predict_array.size)
 
     percent_of_rank_guesses = np.array([0] * 5)
     percent_of_top_guesses = np.array([0] * len(Category))
@@ -41,7 +46,7 @@ def evaluate(model: AbstractPredictor, data_path: PathLike) -> Tuple[np.array, n
     percent_of_top_guesses = percent_of_top_guesses / count_in_top
     percent_of_rank_guesses = (percent_of_rank_guesses / predict_array.shape[0]) * 100
 
-    return mae_by_category, percent_of_rank_guesses, percent_of_top_guesses
+    return mae_by_category, percent_of_rank_guesses, percent_of_top_guesses, rmsle_by_category, rmsle_for_all
 
 
 if __name__ == '__main__':
@@ -53,8 +58,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    predictor = name2predictor[args.predictor]
-    mae, per_of_rank_guesses, per_of_top_guesses = evaluate(predictor, args.datapath)
+    predictor = name2predictor[PredictorName(args.predictor)]
+    mae, per_of_rank_guesses, per_of_top_guesses, rmsle_by_category, rmsle_for_all = evaluate(predictor, args.datapath)
 
     print("__________________________________________________________")
     print(f"Метрики, собранные по прогнозу модели {args.predictor}:\n")
@@ -62,11 +67,14 @@ if __name__ == '__main__':
 
     for index in range(mae.size):
         print(f"Категория {Category.from_id(index)}:\n")
-        print(f"Средняя абсолютная ошибка по категории: {mae[index]}\n")
+        print(f"MAE по категории: {mae[index]}\n")
+        print(f"RMSLE по категории: {rmsle_by_category[index]}\n")
         print(f"Процент верных прогнозов попадания в Топ-5: {per_of_top_guesses[index]}\n\n\n")
 
-    print(f"Средняя абсолютная ошибка по всем категориям: {mae.mean()}\n\n\n")
+    print(f"MAE по всем категориям: {mae.mean()}\n\n\n")
+    print(f"RMSLE по всем категориям: {rmsle_for_all}\n\n\n")
 
     for index in range(per_of_rank_guesses.size):
         print(f"Процент удачных прогнозов категории Топ-{index}: {per_of_rank_guesses[index]}\n\n\n")
     print("__________________________________________________________\n")
+
