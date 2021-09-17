@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    predictor = name2predictor[PredictorName(args.predictor)]
+    predictor = name2predictor[PredictorName(args.predictor)]()
     mae, per_of_rank_guesses, per_of_top_guesses, rmsle_by_category, rmsle_for_all = evaluate(predictor, args.datapath)
 
     print("__________________________________________________________")

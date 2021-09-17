@@ -7,12 +7,13 @@ from data.datamodel import Expenses, Category
 
 def expenses_to_np_array(expenses: Expenses) -> np.ndarray:
     total_expenses = len(Category)
-    expenses_by_category = [0] * total_expenses
+    expenses_by_category: List[float] = [0] * total_expenses
 
-    for category, expense in expenses:
+    for category, expense in expenses.items():
+        category: Category
         expenses_by_category[category.id] = expense
 
-    return np.ndarray(shape=(total_expenses, 1), buffer=expenses_by_category, dtype=np.float)
+    return np.ndarray(shape=(total_expenses, 1), buffer=np.array(expenses_by_category, dtype=float))
 
 
 def top_five_categories(arr: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

@@ -7,4 +7,4 @@ class ExtractorName(Enum):
 
 class PredictorName(Enum):
     STUB = 'stub'
-    BASELINE = 'base'
+    BASELINE = 'baseline'
