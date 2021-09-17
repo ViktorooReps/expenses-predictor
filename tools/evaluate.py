@@ -3,6 +3,7 @@ from os import PathLike
 from typing import Optional, Tuple
 
 import numpy as np
+from tqdm import tqdm
 
 from data.datamodel import Dataset, Category
 from models.abstract import AbstractPredictor
@@ -31,17 +32,15 @@ def evaluate(model: AbstractPredictor, data_path: PathLike) -> Tuple[np.array, n
     percent_of_top_guesses = np.array([0] * len(Category))
     count_in_top = np.array([0] * len(Category))
 
-    for user_number in range(predict_array.shape[0]):
-        predict_top, predict_top_val = top_five_categories(predict_array[user_number])
-        test_top, test_top_val = top_five_categories(test_array[user_number])
-        percent_of_top_guesses = percent_of_rank_guesses + (predict_top == test_top) * 1
+    for user_number in tqdm(range(predict_array.shape[0]), total=predict_array.shape[0], leave=False):
+        predict_top = top_five_categories(predict_array[user_number])
+        test_top = top_five_categories(test_array[user_number])
+        percent_of_rank_guesses += (predict_top == test_top) * 1
 
-        for ind in predict_top:
-            if ind in test_top:
-                percent_of_top_guesses[ind] += 1
+        correct_guesses = list(set(predict_top).intersection(set(test_top)))
+        percent_of_top_guesses[correct_guesses] += 1
 
-        for ind in test_top:
-            count_in_top[ind] += 1
+        count_in_top[test_top] += 1
 
     percent_of_top_guesses = percent_of_top_guesses / count_in_top
     percent_of_rank_guesses = (percent_of_rank_guesses / predict_array.shape[0]) * 100
@@ -66,15 +65,14 @@ if __name__ == '__main__':
     print("__________________________________________________________")
 
     for index in range(mae.size):
-        print(f"Категория {Category.from_id(index)}:\n")
-        print(f"MAE по категории: {mae[index]}\n")
-        print(f"RMSLE по категории: {rmsle_by_category[index]}\n")
-        print(f"Процент верных прогнозов попадания в Топ-5: {per_of_top_guesses[index]}\n\n\n")
+        print(f"Категория {Category.from_id(index)}:")
+        print(f"MAE по категории: {mae[index]}")
+        print(f"RMSLE по категории: {rmsle_by_category[index]}")
+        print(f"Процент верных прогнозов попадания в Топ-5: {per_of_top_guesses[index]}\n")
 
-    print(f"MAE по всем категориям: {mae.mean()}\n\n\n")
-    print(f"RMSLE по всем категориям: {rmsle_for_all}\n\n\n")
+    print(f"MAE по всем категориям: {mae.mean()}")
+    print(f"RMSLE по всем категориям: {rmsle_for_all}\n")
 
     for index in range(per_of_rank_guesses.size):
-        print(f"Процент удачных прогнозов категории Топ-{index}: {per_of_rank_guesses[index]}\n\n\n")
+        print(f"Процент удачных прогнозов категории Топ-{index}: {per_of_rank_guesses[index]}")
     print("__________________________________________________________\n")
-
