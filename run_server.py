@@ -12,7 +12,7 @@ if __name__ == '__main__':
     predictor_names = [pn.value for pn in PredictorName]
 
     parser = ArgumentParser()
-    parser.add_argument('-predictor', choices=predictor_names, type=str, default=PredictorName.STUB.value)
+    parser.add_argument('-predictor', choices=predictor_names, type=str, default=PredictorName.BASELINE.value)
 
     args = parser.parse_args()
 
