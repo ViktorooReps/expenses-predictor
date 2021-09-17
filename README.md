@@ -4,14 +4,20 @@
 ### 1. Serialize data:
 Make sure you moved all .csv files to `cache/tinkoff_hackathon_data`
 
-`python tools/serialize_data.py`
+`python serialize_data.py`
 
 ### 2. Deserialize data:
 
-With `parse_file_as` from `pydantic.tools`:
-
-`parse_file_as(List[UserDataModel], 'data/json/users_test.json')`
+`Dataset.load('path/to/dataset.pkl')`
 
 ### 3. Run server locally:
 
-`python tools/run_server.py -predictor <registered PredictorName>`
+`python run_server.py -predictor <registered PredictorName>`
+
+### 4. Evaluate models:
+
+`python evaluate.py -predictor <registered PredictorName> -datapath <path to serialized dataset>`
+
+### 5. Evaluate best model + run server:
+
+`./deploy.sh`
